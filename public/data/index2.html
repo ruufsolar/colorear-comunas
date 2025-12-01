@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa de Comunas de Chile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #app {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+
+    #map {
+      flex: 1 1 auto;
+    }
+
+    #sidebar {
+      width: 320px;
+      max-width: 35%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-left: 1px solid #ccc;
+      background: #f8f8f8;
+      overflow-y: auto;
+    }
+
+    #sidebar h1 {
+      font-size: 1.1rem;
+      margin: 0 0 8px;
+    }
+
+    #sidebar h2 {
+      font-size: 0.95rem;
+      margin: 12px 0 6px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      gap: 6px;
+      font-size: 0.85rem;
+    }
+
+    .legend-row input[type="text"] {
+      flex: 1 1 auto;
+      font-size: 0.8rem;
+      padding: 2px 4px;
+    }
+
+    .color-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      flex-shrink: 0;
+    }
+
+    .info-line {
+      font-size: 0.8rem;
+      margin-top: 8px;
+    }
+
+    .info-line strong {
+      font-weight: 600;
+    }
+
+    .comuna-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #1e1e1e;
+      text-shadow:
+        -1px -1px 1px rgba(255,255,255,0.7),
+        1px -1px 1px rgba(255,255,255,0.7),
+        -1px 1px 1px rgba(255,255,255,0.7),
+        1px 1px 1px rgba(255,255,255,0.7);
+      white-space: nowrap;
+    }
+
+    .region-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #333366;
+      text-shadow:
+        -1px -1px 1px rgba(255,255,255,0.9),
+        1px -1px 1px rgba(255,255,255,0.9),
+        -1px 1px 1px rgba(255,255,255,0.9),
+        1px 1px 1px rgba(255,255,255,0.9);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div id="sidebar">
+    <h1>Comunas de Chile</h1>
+    <div class="info-line">
+      <strong>Instrucciones:</strong><br/>
+      1) Elige un color en la leyenda<br/>
+      2) Haz clic en una comuna para asignarlo
+    </div>
+
+    <h2>Colores / Grupos</h2>
+    <div id="legend"></div>
+
+    <h2>Selección actual</h2>
+    <div class="info-line">
+      <div><strong>Comuna:</strong> <span id="selected-comuna">–</span></div>
+      <div><strong>Región:</strong> <span id="selected-region">–</span></div>
+      <div><strong>Color:</strong> <span id="selected-color-name">–</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mapeo de código numérico de región -> nombre
+  const REGION_NAMES = {
+    1: "Tarapacá",
+    2: "Antofagasta",
+    3: "Atacama",
+    4: "Coquimbo",
+    5: "Valparaíso",
+    6: "Libertador General Bernardo O'Higgins",
+    7: "Maule",
+    8: "Biobío",
+    9: "La Araucanía",
+    10: "Los Lagos",
+    11: "Aysén del General Carlos Ibáñez del Campo",
+    12: "Magallanes y de la Antártica Chilena",
+    13: "Región Metropolitana de Santiago"
+  };
+
+  // Colores para categorías de usuario (10 opciones bien distintas)
+  const CATEGORY_COLORS = [
+    "#e41a1c",
+    "#377eb8",
+    "#4daf4a",
+    "#984ea3",
+    "#ff7f00",
+    "#ffff33",
+    "#a65628",
+    "#f781bf",
+    "#999999",
+    "#1f78b4"
+  ];
+
+  // Nombres que el usuario puede editar en la leyenda
+  const CATEGORY_DEFAULT_NAMES = [
+    "Grupo 1",
+    "Grupo 2",
+    "Grupo 3",
+    "Grupo 4",
+    "Grupo 5",
+    "Grupo 6",
+    "Grupo 7",
+    "Grupo 8",
+    "Grupo 9",
+    "Grupo 10"
+  ];
+
+  // Colores de borde por región (sólo estético para delimitar regiones)
+  const REGION_BORDER_COLORS = {
+    1: "#084081",
+    2: "#0868ac",
+    3: "#2b8cbe",
+    4: "#4eb3d3",
+    5: "#7bccc4",
+    6: "#a8ddb5",
+    7: "#ccebc5",
+    8: "#41ab5d",
+    9: "#238443",
+    10: "#006d2c",
+    11: "#253494",
+    12: "#54278f",
+    13: "#d95f0e"
+  };
+
+  // Estado de selección
+  let selectedCategoryIndex = 0; // índice de CATEGORY_COLORS
+  const comunaCategory = {};     // comuna -> índice de color
+  const comunaLayers = {};       // comuna -> [layers Leaflet]
+  const comunaBounds = {};       // comuna -> LatLngBounds
+  const comunaRegionCode = {};   // comuna -> región
+  const regionBounds = {};       // regionCode -> LatLngBounds
+
+  // Referencias UI
+  const legendContainer = document.getElementById("legend");
+  const selectedComunaEl = document.getElementById("selected-comuna");
+  const selectedRegionEl = document.getElementById("selected-region");
+  const selectedColorNameEl = document.getElementById("selected-color-name");
+
+  // Crear leyenda interactiva
+  function buildLegend() {
+    CATEGORY_COLORS.forEach((color, idx) => {
+      const row = document.createElement("div");
+      row.className = "legend-row";
+
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "category";
+      radio.value = idx;
+      if (idx === selectedCategoryIndex) radio.checked = true;
+      radio.addEventListener("change", () => {
+        selectedCategoryIndex = idx;
+        updateSelectedColorName();
+      });
+
+      const swatch = document.createElement("div");
+      swatch.className = "color-swatch";
+      swatch.style.backgroundColor = color;
+
+      const text = document.createElement("input");
+      text.type = "text";
+      text.value = CATEGORY_DEFAULT_NAMES[idx];
+      text.addEventListener("input", () => {
+        CATEGORY_DEFAULT_NAMES[idx] = text.value;
+        updateSelectedColorName();
+      });
+
+      row.appendChild(radio);
+      row.appendChild(swatch);
+      row.appendChild(text);
+      legendContainer.appendChild(row);
+    });
+
+    updateSelectedColorName();
+  }
+
+  function updateSelectedColorName() {
+    selectedColorNameEl.textContent = CATEGORY_DEFAULT_NAMES[selectedCategoryIndex] +
+      " (" + CATEGORY_COLORS[selectedCategoryIndex] + ")";
+  }
+
+  // Inicializar mapa
+  const map = L.map("map", {
+    center: [-35.5, -71.5],
+    zoom: 5
+  });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  buildLegend();
+
+  // Cargar GeoJSON de comunas (descargado de ArcGIS)
+  fetch("Comunas_de_Chile.geojson")
+    .then(response => response.json())
+    .then(geojson => {
+      const layer = L.geoJSON(geojson, {
+        style: feature => {
+          const regionCode = feature.properties.region;
+          const borderColor = REGION_BORDER_COLORS[regionCode] || "#555555";
+          return {
+            color: borderColor,
+            weight: 1,
+            fillColor: "#ffffff",
+            fillOpacity: 0.2
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const props = feature.properties;
+          const comuna = props.comuna;
+          const regionCode = props.region;
+          const regionName = REGION_NAMES[regionCode] || ("Región " + regionCode);
+
+          // Guardar capas por comuna
+          if (!comunaLayers[comuna]) comunaLayers[comuna] = [];
+          comunaLayers[comuna].push(layer);
+
+          // Bounds por comuna
+          if (!comunaBounds[comuna]) {
+            comunaBounds[comuna] = layer.getBounds();
+          } else {
+            comunaBounds[comuna] = comunaBounds[comuna].extend(layer.getBounds());
+          }
+
+          // Bounds por región
+          if (!regionBounds[regionCode]) {
+            regionBounds[regionCode] = layer.getBounds();
+          } else {
+            regionBounds[regionCode] = regionBounds[regionCode].extend(layer.getBounds());
+          }
+
+          comunaRegionCode[comuna] = regionCode;
+
+          // Tooltip con nombre de comuna y región
+          layer.bindTooltip(
+            `${comuna} (${regionName})`,
+            {sticky: true, direction: "auto"}
+          );
+
+          // Click para asignar color
+          layer.on("click", () => {
+            const idx = selectedCategoryIndex;
+            comunaCategory[comuna] = idx;
+            const color = CATEGORY_COLORS[idx];
+
+            // Actualizar todas las capas de esa comuna
+            (comunaLayers[comuna] || []).forEach(l => {
+              l.setStyle({
+                fillColor: color,
+                fillOpacity: 0.7
+              });
+            });
+
+            selectedComunaEl.textContent = comuna;
+            selectedRegionEl.textContent = regionName;
+            updateSelectedColorName();
+          });
+
+          // Resaltar al pasar el mouse
+          layer.on("mouseover", () => {
+            layer.setStyle({weight: 2});
+          });
+          layer.on("mouseout", () => {
+            const regionCode2 = props.region;
+            const borderColor2 = REGION_BORDER_COLORS[regionCode2] || "#555555";
+            layer.setStyle({weight: 1, color: borderColor2});
+          });
+        }
+      }).addTo(map);
+
+      map.fitBounds(layer.getBounds());
+
+      // Crear labels de comunas (una por comuna usando el centro de sus bounds)
+      Object.keys(comunaBounds).forEach(comuna => {
+        const bounds = comunaBounds[comuna];
+        if (!bounds) return;
+        const center = bounds.getCenter();
+        L.marker(center, {
+          interactive: false,
+          icon: L.divIcon({
+            className: "comuna-label",
+            html: comuna,
+            iconSize: null
+          })
+        }).addTo(map);
+      });
+
+      // Crear labels de regiones (una por región, usando bounds agregados)
+      Object.keys(regionBounds).forEach(codeStr => {
+        const code = parseInt(codeStr, 10);
+        const bounds = regionBounds[code];
+        if (!bounds) return;
+        const center = bounds.getCenter();
+        const name = REGION_NAMES[code] || ("Región " + code);
+        L.marker(center, {
+          interactive: false,
+          icon: L.divIcon({
+            className: "region-label",
+            html: name,
+            iconSize: null
+          })
+        }).addTo(map);
+      });
+    })
+    .catch(err => {
+      console.error("Error cargando GeoJSON:", err);
+      alert("No se pudo cargar Comunas_de_Chile.geojson. Ver consola para más detalles.");
+    });
+</script>
+</body>
+</html>
