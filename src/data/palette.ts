@@ -5,16 +5,16 @@ export type PaletteColor = {
 }
 
 export const palette: PaletteColor[] = [
-  { id: 'color-1', hex: '#f94144', defaultLabel: 'Prioridad 1' },
-  { id: 'color-2', hex: '#f3722c', defaultLabel: 'Prioridad 2' },
-  { id: 'color-3', hex: '#f9c74f', defaultLabel: 'Prioridad 3' },
-  { id: 'color-4', hex: '#90be6d', defaultLabel: 'Prioridad 4' },
-  { id: 'color-5', hex: '#43aa8b', defaultLabel: 'Prioridad 5' },
-  { id: 'color-6', hex: '#577590', defaultLabel: 'Prioridad 6' },
-  { id: 'color-7', hex: '#4d908e', defaultLabel: 'Prioridad 7' },
-  { id: 'color-8', hex: '#277da1', defaultLabel: 'Prioridad 8' },
-  { id: 'color-9', hex: '#b5179e', defaultLabel: 'Prioridad 9' },
-  { id: 'color-10', hex: '#7209b7', defaultLabel: 'Prioridad 10' },
+  { id: 'color-1', hex: '#e6194b', defaultLabel: 'Red' },
+  { id: 'color-2', hex: '#f58231', defaultLabel: 'Orange' },
+  { id: 'color-3', hex: '#ffe119', defaultLabel: 'Yellow' },
+  { id: 'color-4', hex: '#bfef45', defaultLabel: 'Lime' },
+  { id: 'color-5', hex: '#3cb44b', defaultLabel: 'Green' },
+  { id: 'color-6', hex: '#42d4f4', defaultLabel: 'Cyan' },
+  { id: 'color-7', hex: '#4363d8', defaultLabel: 'Blue' },
+  { id: 'color-8', hex: '#911eb4', defaultLabel: 'Purple' },
+  { id: 'color-9', hex: '#f032e6', defaultLabel: 'Magenta' },
+  { id: 'color-10', hex: '#dcbeff', defaultLabel: 'Lavender' },
 ]
 
 export const DEFAULT_GRAY = '#c5c6cb'
