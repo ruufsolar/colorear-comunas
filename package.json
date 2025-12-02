@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && rm -rf docs && cp -R dist docs && git add docs && git commit -m \"Actualiza docs\" && git push origin main"
   },
   "dependencies": {
     "@turf/turf": "^7.3.1",
