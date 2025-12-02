@@ -48,10 +48,7 @@ function App() {
       setStatus('loading');
       console.log('[Mapa] Inicio de carga de TopoJSON…');
       try {
-        const topoUrl = new URL(
-          'data/Comunas_de_Chile.topojson',
-          import.meta.env.BASE_URL
-        ).toString();
+        const topoUrl = `${import.meta.env.BASE_URL}data/Comunas_de_Chile.topojson`;
         const response = await fetch(topoUrl);
         if (!response.ok) {
           throw new Error(`No se pudo cargar el TopoJSON (${response.status})`);
